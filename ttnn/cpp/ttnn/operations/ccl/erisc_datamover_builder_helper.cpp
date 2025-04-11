@@ -190,6 +190,75 @@ EdmLineFabricOpInterface::EdmLineFabricOpInterface(
             start_bidirectional_device_index = 0;
             end_bidirectional_device_index = device_sequence.size();
         }
+
+        // get the fwd/bwd edm pairs.
+        std::vector<std::pair<
+            std::vector<tt::tt_fabric::FabricEriscDatamoverBuilder>,
+            std::vector<tt::tt_fabric::FabricEriscDatamoverBuilder>>>
+            edm_builders_fwd_bwd_pair;
+        for (size_t i = start_bidirectional_device_index; i < end_bidirectional_device_index; i++) {
+            auto& forward_direction_edm = edm_builders_forward_direction.at(device_sequence[i]->id());
+            auto& backward_direction_edm = edm_builders_backward_direction.at(device_sequence[i]->id());
+            auto edm_fwd_bwd_pair = std::pair{forward_direction_edm, backward_direction_edm};
+            edm_builders_fwd_bwd_pair.push_back(edm_fwd_bwd_pair);
+        }
+
+        // assign noc based on the line-up senerio for fwd-bwd connection
+        for (auto& edm_fwd_bwd_pair : edm_builders_fwd_bwd_pair) {
+            const size_t num_links = edm_fwd_bwd_pair.first.size();
+            for (size_t l = 0; l < num_links; l++) {
+                auto& edm_fwd = edm_fwd_bwd_pair.first[l];
+                auto& edm_bwd = edm_fwd_bwd_pair.second[l];
+                if (edm_fwd.my_noc_x < edm_bwd.my_noc_x) {
+                    for (uint32_t i = 0; i < edm_fwd.config.num_receiver_channels; i++) {
+                        edm_fwd.config.receiver_channel_forwarding_noc_ids[i] = 0;
+                        edm_bwd.config.receiver_channel_forwarding_noc_ids[i] = 1;
+
+                        edm_fwd.config.receiver_channel_forwarding_data_cmd_buf_ids[i] =
+                            edm_fwd.config.WR_REG_CMD_BUF;  // not sure about cmd buf for now
+                        edm_bwd.config.receiver_channel_forwarding_data_cmd_buf_ids[i] =
+                            edm_fwd.config.WR_REG_CMD_BUF;  // not sure about cmd buf for now
+
+                        edm_fwd.config.receiver_channel_forwarding_sync_cmd_buf_ids[i] =
+                            edm_fwd.config.RD_CMD_BUF;  // not sure about cmd buf for now
+                        edm_bwd.config.receiver_channel_forwarding_sync_cmd_buf_ids[i] =
+                            edm_fwd.config.RD_CMD_BUF;  // not sure about cmd buf for now
+
+                        edm_fwd.config.receiver_channel_local_write_noc_ids[i] = 0;  // not sure about cmd buf for now
+                        edm_bwd.config.receiver_channel_local_write_noc_ids[i] = 1;  // not sure about cmd buf for now
+
+                        edm_fwd.config.receiver_channel_local_write_cmd_buf_ids[i] =
+                            edm_fwd.config.WR_CMD_BUF;  // not sure about cmd buf for now
+                        edm_bwd.config.receiver_channel_local_write_cmd_buf_ids[i] =
+                            edm_fwd.config.WR_CMD_BUF;  // not sure about cmd buf for now
+                    }
+                } else {
+                    for (uint32_t i = 0; i < edm_fwd.config.num_receiver_channels; i++) {
+                        edm_fwd.config.receiver_channel_forwarding_noc_ids[i] = 1;
+                        edm_bwd.config.receiver_channel_forwarding_noc_ids[i] = 0;
+
+                        edm_fwd.config.receiver_channel_forwarding_data_cmd_buf_ids[i] =
+                            edm_fwd.config.WR_REG_CMD_BUF;  // not sure about cmd buf for now
+                        edm_bwd.config.receiver_channel_forwarding_data_cmd_buf_ids[i] =
+                            edm_fwd.config.WR_REG_CMD_BUF;  // not sure about cmd buf for now
+
+                        edm_fwd.config.receiver_channel_forwarding_sync_cmd_buf_ids[i] =
+                            edm_fwd.config.RD_CMD_BUF;  // not sure about cmd buf for now
+                        edm_bwd.config.receiver_channel_forwarding_sync_cmd_buf_ids[i] =
+                            edm_fwd.config.RD_CMD_BUF;  // not sure about cmd buf for now
+
+                        edm_fwd.config.receiver_channel_local_write_noc_ids[i] = 1;  // not sure about cmd buf for now
+                        edm_bwd.config.receiver_channel_local_write_noc_ids[i] = 0;  // not sure about cmd buf for now
+
+                        edm_fwd.config.receiver_channel_local_write_cmd_buf_ids[i] =
+                            edm_fwd.config.WR_CMD_BUF;  // not sure about cmd buf for now
+                        edm_bwd.config.receiver_channel_local_write_cmd_buf_ids[i] =
+                            edm_fwd.config.WR_CMD_BUF;  // not sure about cmd buf for now
+                    }
+                }
+            }
+        }
+
         for (size_t i = start_bidirectional_device_index; i < end_bidirectional_device_index; i++) {
             const size_t num_links = edm_builders_forward_direction.at(device_sequence[i]->id()).size();
             auto& forward_direction_edm = edm_builders_forward_direction.at(device_sequence[i]->id());

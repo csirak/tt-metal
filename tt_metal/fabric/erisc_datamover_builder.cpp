@@ -262,6 +262,25 @@ FabricEriscDatamoverConfig::FabricEriscDatamoverConfig(std::size_t channel_buffe
     TT_FATAL(
         buffer_addr < this->max_l1_loading_size,
         "Internal error - channel buffers spilled past the end of usable L1 region.");
+
+    // set default noc and cmd bufs (current setup in TG 4U)
+    constexpr size_t sender_ack_noc_id = 0;
+    constexpr size_t receiver_channel_write_noc_id = 1;
+    constexpr uint32_t WR_CMD_BUF = 0;      // for large writes
+    constexpr uint32_t RD_CMD_BUF = 1;      // for all reads
+    constexpr uint32_t WR_REG_CMD_BUF = 2;  // for small writes (e.g., registers, semaphores)
+    constexpr uint32_t AT_CMD_BUF = 3;      // for atomics
+    for (uint32_t i = 0; i < FabricEriscDatamoverConfig::num_receiver_channels; i++) {
+        this->receiver_channel_forwarding_noc_ids[i] = receiver_channel_write_noc_id;
+        this->receiver_channel_forwarding_data_cmd_buf_ids[i] = WR_REG_CMD_BUF;
+        this->receiver_channel_forwarding_sync_cmd_buf_ids[i] = RD_CMD_BUF;
+        this->receiver_channel_local_write_noc_ids[i] = receiver_channel_write_noc_id;
+        this->receiver_channel_local_write_cmd_buf_ids[i] = WR_CMD_BUF;
+    }
+    for (uint32_t i = 0; i < FabricEriscDatamoverConfig::num_sender_channels; i++) {
+        this->sender_channel_ack_noc_ids[i] = sender_ack_noc_id;
+        this->sender_channel_ack_cmd_buf_ids[i] = 1 == 0 ? WR_REG_CMD_BUF : WR_CMD_BUF;
+    }
 }
 
 void get_runtime_args_for_edm_termination_infos(
