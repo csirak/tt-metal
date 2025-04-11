@@ -42,12 +42,14 @@ static bool runTest(tt::tt_metal::IDevice* device, const CoreCoord& coord, const
     tt::tt_metal::MetalContext::instance().get_cluster().l1_barrier(device->id());
     auto noc_xy = device->worker_core_from_logical_core(coord);
     std::vector<uint32_t> args =
-        tt::llrt::read_hex_vec_from_core(device->id(), noc_xy, args_addr, 16 * sizeof(uint32_t));
+        tt::llrt::read_hex_vec_from_core(device->id(), noc_xy, args_addr, 24 * sizeof(uint32_t));
     std::printf("%s:\n", path.c_str());
     std::printf("%08x, %08x, %08x, %08x\n", args[0], args[1], args[2], args[3]);
     std::printf("%08x, %08x, %08x, %08x\n", args[4], args[5], args[6], args[7]);
     std::printf("%08x, %08x, %08x, %08x\n", args[8], args[9], args[10], args[11]);
     std::printf("%08x, %08x, %08x, %08x\n", args[12], args[13], args[14], args[15]);
+    std::printf("%08x, %08x, %08x, %08x\n", args[16], args[17], args[18], args[19]);
+    std::printf("%08x, %08x, %08x, %08x\n", args[20], args[21], args[22], args[23]);
     bool pass = true;
     std::printf("%s: %s\n", path.c_str() + baseLen + 1, pass ? "PASSED" : "FAILED");
     return pass;

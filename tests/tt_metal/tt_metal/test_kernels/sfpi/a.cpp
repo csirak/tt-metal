@@ -17,23 +17,36 @@ void MAIN {
 
 
     tile_regs_acquire();
+//    sfpu::_init_sfpu_config_reg();
+    eltwise_unary_sfpu_configure_addrmod<sfpu_op>();
+    math::reset_counters(p_setrwc::SET_ABD_F);
+
+    INSTRUCTION_WORD(TT_OP_SETRWC(3, 0, 0, 0, 0, 3));
 #endif
+
 #if COMPILE_FOR_TRISC == 1  // compute
     // do the math
     {
-        vUInt c0ffee = vUInt(0x00c0) << 16 | vUInt(0xffee);
+        (TT_OP_SETRWC(p_setrwc::CLR_AB, 0, 0, 0, 0, p_setrwc::SET_AB)) vUInt c0ffee =
+            vUInt(0x4567) << 16 | vUInt(0x4123);
+#if 0
         vUInt deadbeef = vUInt(0xdead) << 16 | vUInt(0xbeef);
         vUInt c0edbabe = vUInt(0xc0ed) << 16 | vUInt(0xbabe);
 
         dst_reg[0] = c0ffee;
         dst_reg[1] = deadbeef;
         dst_reg[2] = c0edbabe;
-        //        dbg_halt();
+#endif
+        asm volatile("sfpstore 0,%0,7,0" : : "x"(c0ffee.get()));
+        asm volatile("sfpstore 8,%0,7,0" : : "x"(c0ffee.get()));
+
+        // dbg_halt();
         auto* args = reinterpret_cast<tt_l1_ptr uint32_t*>(get_compile_time_arg_val(0));
         dbg_read_dest_acc_row(0, args);
         dbg_read_dest_acc_row(8, args + 8);
+        dbg_read_dest_acc_row(16, args + 16);
         // maybe +8 needed and then merge?
-        ..dbg_unhalt();
+        // dbg_unhalt();
     }
 #endif
 #if 0
