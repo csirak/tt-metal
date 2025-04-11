@@ -25,7 +25,6 @@ struct address_map {
     // Reserve some space at the end of l1 for l1_barrier
     static constexpr std::int32_t ERISC_BARRIER_SIZE = 32;
     static constexpr std::int32_t MAX_SIZE = 256 * 1024 - ERISC_BARRIER_SIZE;
-    static constexpr std::int32_t MAX_L1_LOADING_SIZE = 1 * 256 * 1024 - ERISC_BARRIER_SIZE;
 
     // Sizes
     static constexpr std::int32_t APP_FIRMWARE_SIZE = 32 * 1024;
@@ -51,17 +50,29 @@ struct address_map {
     static constexpr std::int32_t ROUTING_FW_RESERVED_BASE = L1_EPOCH_Q_BASE + APP_FIRMWARE_SIZE;
     static constexpr std::int32_t SW_MANAGED_L1_BASE = ROUTING_FW_RESERVED_BASE + ROUTING_FW_RESERVED_SIZE;
 
+    static constexpr std::int32_t MAX_L1_LOADING_SIZE = 0x3E000;
+
     // TT Metal Specific
-    // Total 160 * 1024 L1 starting from SW_L1_MANAGED_BASE
-    //    -   1 * 1024 misc args
-    //    -  53 * 1024 eth app reserved buffer space
-    //    - 106 * 1024 L1 unreserved buffer space
+    //     Optional FW reserved space for routing FW
+    //     ERISC unreserved space
+    //     ERISC config space
+
+    // ERISC UNRESERVED space starting from SW_MANAGED_L1_BASE on systems with routing FW and ROUTING_FW_RESERVED_BASE
+    // on systems without MAX is MAX_L1_LOADING_SIZE
+    static constexpr std::int32_t ERISC_L1_UNRESERVED_BASE = SW_MANAGED_L1_BASE;
+    static constexpr std::int32_t ERISC_L1_UNRESERVED_SIZE = MAX_L1_LOADING_SIZE - ERISC_L1_UNRESERVED_BASE;
+    static constexpr std::int32_t ROUTING_DISABLED_ERISC_L1_UNRESERVED_BASE = ROUTING_FW_RESERVED_BASE;
+    static constexpr std::int32_t ROUTING_DISABLED_ERISC_L1_UNRESERVED_SIZE =
+        MAX_L1_LOADING_SIZE - ROUTING_DISABLED_ERISC_L1_UNRESERVED_BASE;
+
+    static_assert((ERISC_L1_UNRESERVED_BASE % 32) == 0);
+
+    // CONFIG SPACE starting from MAX_L1_LOADING_SIZE to MAX_SIZE
     static constexpr std::int32_t MAX_NUM_CONCURRENT_TRANSACTIONS = 8;
     static constexpr std::int32_t ERISC_APP_ROUTING_INFO_SIZE = 48;
     static constexpr std::int32_t ERISC_APP_SYNC_INFO_SIZE = 160 + 16 * MAX_NUM_CONCURRENT_TRANSACTIONS;
 
-    static constexpr std::int32_t ERISC_BARRIER_BASE = MAX_SIZE;
-    static constexpr std::int32_t ERISC_APP_ROUTING_INFO_BASE = SW_MANAGED_L1_BASE;
+    static constexpr std::int32_t ERISC_APP_ROUTING_INFO_BASE = MAX_L1_LOADING_SIZE;
     static constexpr std::int32_t ERISC_APP_SYNC_INFO_BASE = ERISC_APP_ROUTING_INFO_BASE + ERISC_APP_ROUTING_INFO_SIZE;
 
     static constexpr std::int32_t ERISC_MEM_MAILBOX_BASE = ERISC_APP_SYNC_INFO_BASE + ERISC_APP_SYNC_INFO_SIZE;
@@ -72,11 +83,10 @@ struct address_map {
     static constexpr std::int32_t FABRIC_ROUTER_CONFIG_BASE =
         (ERISC_L1_KERNEL_CONFIG_BASE + ERISC_L1_KERNEL_CONFIG_SIZE + 31) & ~31;
     static constexpr std::int32_t FABRIC_ROUTER_CONFIG_SIZE = 2064;
-    static constexpr std::int32_t ERISC_L1_UNRESERVED_BASE =
-        (FABRIC_ROUTER_CONFIG_BASE + FABRIC_ROUTER_CONFIG_SIZE + 31) & ~31;
-    static constexpr std::int32_t ERISC_L1_UNRESERVED_SIZE = MAX_L1_LOADING_SIZE - ERISC_L1_UNRESERVED_BASE;
 
-    static_assert((ERISC_L1_UNRESERVED_BASE % 32) == 0);
+    static constexpr std::int32_t ERISC_BARRIER_BASE =
+        (FABRIC_ROUTER_CONFIG_BASE + FABRIC_ROUTER_CONFIG_SIZE + 31) & ~31;
+    static_assert(ERISC_BARRIER_BASE < MAX_SIZE, "Erisc config region is greater than MAX_SIZE");
 
     // This scratch address is same as ERISC_L1_UNRESERVED_BASE, as the scratch space is used to copy data during
     // runtime build, and is unused once FW copies the data to local memory during FW initialization.
