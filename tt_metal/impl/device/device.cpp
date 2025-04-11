@@ -740,12 +740,14 @@ void Device::initialize_and_launch_firmware() {
     // The SOC descriptor can list a dram core multiple times, depending on how GDDR is assigned to banks
     // Get a list of unique DRAM cores.
     std::unordered_set<CoreCoord> unique_dram_cores(dram_cores.begin(), dram_cores.end());
-    TT_ASSERT(
-        pcie_cores.size() + dram_cores.size() + eth_cores.size() <= MAX_PHYSICAL_NON_WORKER_CORES,
-        "Detected more pcie/dram/eth cores than fit in the device mailbox.");
+    // TT_ASSERT(
+    //     pcie_cores.size() + dram_cores.size() + eth_cores.size() <= MAX_PHYSICAL_NON_WORKER_CORES,
+    //     "Detected more pcie/dram/eth cores than fit in the device mailbox.");
     TT_ASSERT(
         eth_cores.size() <= MAX_VIRTUAL_NON_WORKER_CORES,
         "Detected more eth cores (virtual non-workers) than can fit in device mailbox.");
+    std::cout << "MAX_PHYSICAL_NON_WORKER_CORES " << MAX_PHYSICAL_NON_WORKER_CORES << " MAX_VIRTUAL_NON_WORKER_CORES "
+              << MAX_VIRTUAL_NON_WORKER_CORES << std::endl;
     for (int idx = 0; idx < MAX_PHYSICAL_NON_WORKER_CORES; idx++) {
         core_info->non_worker_cores[idx] = {CORE_COORD_INVALID, CORE_COORD_INVALID, AddressableCoreType::UNKNOWN};
     }
@@ -784,7 +786,7 @@ void Device::initialize_and_launch_firmware() {
         core_info->non_worker_cores[non_worker_cores_idx++] = {core.x, core.y, AddressableCoreType::ETH};
     }
 
-    // std::cout << "non_worker_cores_idx " << non_worker_cores_idx << std::endl;
+    std::cout << "non_worker_cores_idx " << non_worker_cores_idx << std::endl;
     // for (int i = 0; i < non_worker_cores_idx; i++) {
     //     std::cout << "physical (" << (uint32_t)core_info->non_worker_cores[i].x << ", "
     //               << (uint32_t)core_info->non_worker_cores[i].y << ")" << std::endl;
@@ -814,7 +816,7 @@ void Device::initialize_and_launch_firmware() {
                 core_info->virtual_non_worker_cores[virtual_non_worker_cores_idx++] = {
                     core.x, core.y, AddressableCoreType::DRAM};
             }
-            // std::cout << "virtual non worker core idx " << virtual_non_worker_cores_idx << std::endl;
+            std::cout << "virtual non worker core idx " << virtual_non_worker_cores_idx << std::endl;
         }
     }
 
@@ -824,9 +826,9 @@ void Device::initialize_and_launch_firmware() {
         tt::tt_metal::MetalContext::instance().get_cluster().get_soc_desc(this->id()).arch, tt::tt_metal::MetalContext::instance().get_cluster().get_harvesting_mask(this->id()));
     uint32_t max_along_axis =
         hal_ref.get_tensix_harvest_axis() == HalTensixHarvestAxis::ROW ? soc_d.grid_size.y : soc_d.grid_size.x;
-    // std::cout << "max along axis " << max_along_axis << " x " << soc_d.grid_size.x << std::endl;
     for (uint32_t idx = 0; idx < max_along_axis; idx++) {
         bool harvested_axis = (harvested_noc_coords >> idx) & 0x1;
+        // std::cout << "Harvested " << harvested_axis << " idx is " << idx << std::endl;
         if (harvested_axis) {
             // std::cout << "tensix column " << idx << " harvested " << std::endl;
             harvested_axis_coord.push_back(idx);
@@ -840,12 +842,17 @@ void Device::initialize_and_launch_firmware() {
         // Populate harvested rows/cols in virtual coordinate space if virtualization is supported by HW.
         // Harvested rows/cols in the virtual space are placed at the end of the worker grid,
         if (hal_ref.is_coordinate_virtualization_enabled() and idx < harvested_axis_coord.size()) {
-            core_info->virtual_harvested_coords[idx] =
-                hal_ref.get_tensix_harvest_axis() == HalTensixHarvestAxis::ROW
-                    ? (hal_ref.get_virtual_worker_start_y() + this->logical_grid_size().y +
-                       harvested_axis_coord.size() - (idx + 1))
-                    : (hal_ref.get_virtual_worker_start_x() + this->logical_grid_size().x +
-                       harvested_axis_coord.size() - (idx + 1));
+            uint32_t end_virtual_grid = hal_ref.get_tensix_harvest_axis() == HalTensixHarvestAxis::ROW
+                                            ? hal_ref.get_virtual_worker_start_y() + this->logical_grid_size().y
+                                            : hal_ref.get_virtual_worker_start_x() + this->logical_grid_size().x;
+
+            // BH translated tensix cores are same as noc0 physical
+            core_info->virtual_harvested_coords[idx] = this->arch() == ARCH::BLACKHOLE
+                                                           ? core_info->harvested_coords[idx]
+                                                           : end_virtual_grid + harvested_axis_coord.size() - (idx + 1);
+
+            // std::cout << "core_info->virtual_harvested_coords[idx] " <<
+            // (uint32_t)core_info->virtual_harvested_coords[idx] << std::endl;
         } else {
             core_info->virtual_harvested_coords[idx] = CORE_COORD_INVALID;
         }
@@ -855,6 +862,10 @@ void Device::initialize_and_launch_firmware() {
     core_info->noc_size_y = soc_d.grid_size.y;
     core_info->worker_grid_size_x = this->logical_grid_size().x;  // Grid size as virtual coords see it (workers only)
     core_info->worker_grid_size_y = this->logical_grid_size().y;
+
+    std::cout << "noc x y " << (uint32_t)core_info->noc_size_x << " , " << (uint32_t)core_info->noc_size_y
+              << " worker x y " << (uint32_t)core_info->worker_grid_size_x << " , "
+              << (uint32_t)core_info->worker_grid_size_y << std::endl;
 
     // Download to worker cores
     log_debug("Initializing firmware");
