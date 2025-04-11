@@ -29,8 +29,11 @@ struct address_map {
 
     // Sizes
     static constexpr std::int32_t APP_FIRMWARE_SIZE = 32 * 1024;
-    static constexpr std::int32_t ROUTING_CQ_SIZE = 4 * 1024;
-    static constexpr std::int32_t ROUTING_BUFFER_SIZE = 24 * 1024;
+#if defined(ROUTING_FW_ENABLED)
+    static constexpr std::int32_t ROUTING_FW_RESERVED_SIZE = 28 * 1024;
+#else
+    static constexpr std::int32_t ROUTING_FW_RESERVED_SIZE = 0;
+#endif
     // Memory for (dram/l1)_bank_to_noc_xy arrays, size needs to be atleast 2 * NUM_NOCS * (NUM_DRAM_BANKS + NUM_L1_BANKS)
     static constexpr std::int32_t ERISC_MEM_BANK_TO_NOC_XY_SIZE = 1024;
     // Memory for bank_to_dram_offset and bank_to_l1_offset arrays, size needs to be atleast 4 * (NUM_DRAM_BANKS + NUM_L1_BANKS)
@@ -44,9 +47,8 @@ struct address_map {
     static constexpr std::int32_t FIRMWARE_BASE = 0x9040;
     static constexpr std::int32_t L1_EPOCH_Q_BASE = 0x9000;  // Epoch Q start in L1.
     static constexpr std::int32_t KERNEL_BASE = 0xA840;
-    static constexpr std::int32_t ROUTING_CQ_BASE = L1_EPOCH_Q_BASE + APP_FIRMWARE_SIZE;
-    static constexpr std::int32_t ROUTING_BUFFER_BASE = ROUTING_CQ_BASE + ROUTING_CQ_SIZE;
-    static constexpr std::int32_t SW_MANAGED_L1_BASE = ROUTING_BUFFER_BASE + ROUTING_BUFFER_SIZE;
+    static constexpr std::int32_t ROUTING_FW_RESERVED_BASE = L1_EPOCH_Q_BASE + APP_FIRMWARE_SIZE;
+    static constexpr std::int32_t SW_MANAGED_L1_BASE = ROUTING_FW_RESERVED_BASE + ROUTING_FW_RESERVED_SIZE;
 
     // TT Metal Specific
     // Total 160 * 1024 L1 starting from SW_L1_MANAGED_BASE
