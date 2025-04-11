@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>  // for memcpy
 
 #define PROFILER_OPT_DO_DISPATCH_CORES 2
 
@@ -54,7 +55,30 @@ enum ControlBuffer {
     PROFILER_DONE,
 };
 
-enum PacketTypes { ZONE_START, ZONE_END, ZONE_TOTAL, TS_DATA, TS_EVENT };
+enum PacketTypes { ZONE_START = 0, ZONE_END = 1, ZONE_TOTAL = 2, TS_DATA = 3, TS_EVENT = 4, TAGGED_DATA = 5 };
+
+enum class DataTag : uint8_t { UNDEF = 0, NOC_TRACE_TT_FABRIC_HEADER = 1 };
+struct alignas(uint16_t) TaggedDataHeader {
+    DataTag tag = DataTag::UNDEF;
+    uint8_t payload_size = 0;
+
+    // interpret this struct as a uint16_t (serialization)
+    constexpr uint16_t asU16() const {
+        uint16_t result = 0;
+        result |= (static_cast<uint16_t>(tag) & 0xFF);
+        result |= (static_cast<uint16_t>(payload_size) << 8);
+        return result;
+    }
+
+    // convert a uint16_t to a TaggedDataHeader (deserialization)
+    constexpr static TaggedDataHeader fromU16(uint16_t data) {
+        TaggedDataHeader result;
+        result.tag = static_cast<DataTag>(data & 0xFF);
+        result.payload_size = static_cast<uint8_t>((data >> 8) & 0xFF);
+        return result;
+    }
+};
+static_assert(sizeof(TaggedDataHeader) == sizeof(uint16_t));
 
 // TODO: use data types in profile_msg_t rather than addresses/sizes
 constexpr static std::uint32_t PROFILER_L1_CONTROL_VECTOR_SIZE = 32;

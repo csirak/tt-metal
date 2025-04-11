@@ -45,6 +45,7 @@ extern uint32_t sumIDs[SUM_COUNT];
 constexpr uint32_t QUICK_PUSH_MARKER_COUNT = 2;
 constexpr int WALL_CLOCK_HIGH_INDEX = 1;
 constexpr int WALL_CLOCK_LOW_INDEX = 0;
+constexpr uint32_t MAX_TAGGED_DATA_PAYLOAD_SIZE = 255;
 
 volatile tt_l1_ptr uint32_t* profiler_control_buffer =
     reinterpret_cast<volatile tt_l1_ptr uint32_t*>(GET_MAILBOX_ADDRESS_DEV(profiler.control_vector));
@@ -405,6 +406,32 @@ inline __attribute__((always_inline)) void recordEvent(uint16_t event_id) {
         wIndex += PROFILER_L1_MARKER_UINT32_SIZE;
     }
 }
+
+// Records a TAGGED_DATA (no timer) into the profiler data buffer
+// Returns true if successful, false if buffer is full
+// compile-time payload_size is in bytes and *must be a multiple of 4*
+template <DataTag tag, uint32_t payload_size, DoingDispatch dispatch = DoingDispatch::NOT_DISPATCH>
+inline bool recordTaggedData(const volatile tt_l1_ptr uint32_t* payload) {
+    static_assert((payload_size & 3) == 0, "payload_size must be a multiple of 4 bytes");
+    static_assert(payload_size <= MAX_TAGGED_DATA_PAYLOAD_SIZE, "payload_size exceeds maximum allowed size");
+    if (!bufferHasRoom<dispatch>()) {
+        return false;
+    }
+
+    constexpr TaggedDataHeader header{.tag = tag, .payload_size = payload_size};
+    constexpr auto compile_time_id = 0x80000000 | ((get_const_id(header.asU16(), TAGGED_DATA) & 0x7FFFF) << 12);
+    profiler_data_buffer[myRiscID][wIndex++] = compile_time_id;
+
+    // Copy payload data word by word
+    constexpr uint32_t payload_words = payload_size / 4;
+#pragma GCC unroll MAX_TAGGED_DATA_PAYLOAD_SIZE / 4
+    for (uint32_t i = 0; i < payload_words; i++) {
+        profiler_data_buffer[myRiscID][wIndex++] = payload[i];
+    }
+
+    return true;
+}
+
 }  // namespace kernel_profiler
 
 #include "noc_event_profiler.hpp"
@@ -503,5 +530,6 @@ inline __attribute__((always_inline)) void recordEvent(uint16_t event_id) {
 #define RECORD_NOC_EVENT_WITH_ADDR(type, noc_addr, num_bytes, vc)
 #define RECORD_NOC_EVENT_WITH_ID(type, noc_id, num_bytes, vc)
 #define RECORD_NOC_EVENT(type)
+#define RECORD_FABRIC_HEADER(fabric_header_ptr, fabric_header_size)
 
 #endif

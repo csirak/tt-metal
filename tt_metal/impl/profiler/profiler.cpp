@@ -35,6 +35,7 @@
 #include <umd/device/tt_core_coordinates.h>
 #include <umd/device/types/arch.h>
 #include <umd/device/types/xy_pair.h>
+#include <tt-metalium/fabric_edm_packet_header.hpp>
 
 namespace tt {
 
@@ -154,6 +155,58 @@ void DeviceProfiler::readRiscProfilerResults(
                     kernel_profiler::PacketTypes packet_type = get_packet_type(timer_id);
 
                     switch (packet_type) {
+                        case kernel_profiler::PacketTypes::TAGGED_DATA: {
+                            // For TAGGED_DATA packets, timer_id is actually the packet tag and size
+                            kernel_profiler::TaggedDataHeader tag_struct_data =
+                                kernel_profiler::TaggedDataHeader::fromU16(timer_id);
+
+                            uint32_t payload_words = (tag_struct_data.payload_size + 3) / 4;
+                            index++;
+
+                            if (tag_struct_data.tag == kernel_profiler::DataTag::NOC_TRACE_TT_FABRIC_HEADER) {
+                                log_info(
+                                    "    MATCH FABRIC TAGGED_DATA PACKET with tag {} of size {}!",
+                                    uint8_t(tag_struct_data.tag),
+                                    tag_struct_data.payload_size);
+
+                                TT_ASSERT(tag_struct_data.payload_size == sizeof(tt_fabric::PacketHeader));
+
+                                // copy profile buffer packets into fabric_header
+                                tt_fabric::PacketHeader fabric_header = {};
+                                std::memcpy(&fabric_header, &profile_buffer[index], sizeof(tt_fabric::PacketHeader));
+
+                                tt_fabric::NocCommandFields command_fields = fabric_header.get_command_fields();
+                                uint16_t payload_size_bytes = fabric_header.get_payload_size_excluding_header();
+                                tt_fabric::NocSendType noc_send_type = fabric_header.get_noc_send_type();
+
+                                log_info("    noc send type {}", magic_enum::enum_name(noc_send_type));
+                                log_info("    payload size  {}", payload_size_bytes);
+
+                                if (noc_send_type == tt_fabric::NocSendType::NOC_UNICAST_WRITE) {
+                                    tt_fabric::NocUnicastCommandHeader noc_unicast_command_header =
+                                        command_fields.unicast_write;
+                                    uint64_t x = HalSingleton::getInstance().get_noc_ucast_addr_x(
+                                        noc_unicast_command_header.noc_address);
+                                    uint64_t y = HalSingleton::getInstance().get_noc_ucast_addr_y(
+                                        noc_unicast_command_header.noc_address);
+                                    auto destination_coord = getPhysicalAddressFromVirtual(device_id, CoreCoord(x, y));
+                                    log_info(
+                                        "    destination physical XY {},{}", destination_coord.x, destination_coord.y);
+                                } else if (noc_send_type == tt_fabric::NocSendType::NOC_MULTICAST_WRITE) {
+                                    tt_fabric::NocMulticastCommandHeader noc_multicast_command_header =
+                                        command_fields.mcast_write;
+                                    // noc_multicast_command_header.mcast_rect_size_x;
+                                    // noc_multicast_command_header.mcast_rect_size_y;
+                                    // noc_multicast_command_header.noc_x_start;
+                                    // noc_multicast_command_header.noc_y_start;
+                                }
+
+                                // NOTE: ignoring inline write and atomic inc events (for now), as these don't
+                                // significantly contribute to traffic
+                            }
+
+                            index += payload_words;
+                        } break;
                         case kernel_profiler::ZONE_START:
                         case kernel_profiler::ZONE_END: {
                             uint32_t time_H = profile_buffer[index] & 0xFFF;

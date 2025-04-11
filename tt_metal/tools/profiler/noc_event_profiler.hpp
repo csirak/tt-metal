@@ -143,11 +143,18 @@ void recordNocEventWithAddr(
         noc_event_profiler::recordNocEvent(event_type);                    \
     }
 
+#define RECORD_FABRIC_HEADER(_fabric_header_ptr, _fabric_header_size)                                                 \
+    {                                                                                                                 \
+        kernel_profiler::recordTaggedData<kernel_profiler::DataTag::NOC_TRACE_TT_FABRIC_HEADER, _fabric_header_size>( \
+            _fabric_header_ptr);                                                                                      \
+    }
+
 #else
 
 // null macros when noc tracing is disabled
 #define RECORD_NOC_EVENT_WITH_ADDR(type, noc_addr, num_bytes, vc)
 #define RECORD_NOC_EVENT_WITH_ID(type, noc_id, num_bytes, vc)
 #define RECORD_NOC_EVENT(type)
+#define RECORD_FABRIC_HEADER(fabric_header_ptr, fabric_header_size)
 
 #endif
