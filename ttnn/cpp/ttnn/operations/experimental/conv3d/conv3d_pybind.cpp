@@ -57,7 +57,12 @@ void py_bind_conv3d(pybind11::module& module) {
             py::arg("compute_kernel_config") = std::nullopt,
             py::arg("queue_id") = 0});
 
-    py::class_<Conv3dConfig> py_conv3d_config = py::class_<Conv3dConfig>(module, "Conv3dConfig")
+    py::class_<Conv3dConfig> py_conv3d_config = py::class_<Conv3dConfig>(
+                                                    module,
+                                                    "Conv3dConfig",
+                                                    R"doc(
+                            Configuration for the Conv3D operation.
+                            )doc")
                                                     .def(py::init<>())
                                                     .def(
                                                         py::init<
@@ -93,21 +98,21 @@ void py_bind_conv3d(pybind11::module& module) {
                                                         py::arg("groups") = 1,
                                                         py::arg("compute_with_storage_grid_size") = CoreCoord{1, 1});
 
-    py_conv3d_config.def_readwrite("dtype", &Conv3dConfig::dtype);
-    py_conv3d_config.def_readwrite("weights_dtype", &Conv3dConfig::weights_dtype);
-    py_conv3d_config.def_readwrite("output_layout", &Conv3dConfig::output_layout);
-    py_conv3d_config.def_readwrite("T_out_block", &Conv3dConfig::T_out_block);
-    py_conv3d_config.def_readwrite("W_out_block", &Conv3dConfig::W_out_block);
-    py_conv3d_config.def_readwrite("H_out_block", &Conv3dConfig::H_out_block);
-    py_conv3d_config.def_readwrite("C_out_block", &Conv3dConfig::C_out_block);
-    py_conv3d_config.def_readwrite("C_in_block", &Conv3dConfig::C_in_block);
-    py_conv3d_config.def_readwrite("output_channels", &Conv3dConfig::output_channels);
-    py_conv3d_config.def_readwrite("kernel_size", &Conv3dConfig::kernel_size);
-    py_conv3d_config.def_readwrite("stride", &Conv3dConfig::stride);
-    py_conv3d_config.def_readwrite("padding", &Conv3dConfig::padding);
-    py_conv3d_config.def_readwrite("padding_mode", &Conv3dConfig::padding_mode);
-    py_conv3d_config.def_readwrite("groups", &Conv3dConfig::groups);
-    py_conv3d_config.def_readwrite("compute_with_storage_grid_size", &Conv3dConfig::compute_with_storage_grid_size);
+    py_conv3d_config.def_readwrite("dtype", &Conv3dConfig::dtype, "");
+    py_conv3d_config.def_readwrite("weights_dtype", &Conv3dConfig::weights_dtype, "");
+    py_conv3d_config.def_readwrite("output_layout", &Conv3dConfig::output_layout, "");
+    py_conv3d_config.def_readwrite("T_out_block", &Conv3dConfig::T_out_block, "");
+    py_conv3d_config.def_readwrite("W_out_block", &Conv3dConfig::W_out_block, "");
+    py_conv3d_config.def_readwrite("H_out_block", &Conv3dConfig::H_out_block, "");
+    py_conv3d_config.def_readwrite("C_out_block", &Conv3dConfig::C_out_block, "");
+    py_conv3d_config.def_readwrite("C_in_block", &Conv3dConfig::C_in_block, "");
+    py_conv3d_config.def_readwrite("output_channels", &Conv3dConfig::output_channels, "");
+    py_conv3d_config.def_readwrite("kernel_size", &Conv3dConfig::kernel_size, "");
+    py_conv3d_config.def_readwrite("stride", &Conv3dConfig::stride, "");
+    py_conv3d_config.def_readwrite("padding", &Conv3dConfig::padding, "");
+    py_conv3d_config.def_readwrite("padding_mode", &Conv3dConfig::padding_mode, "");
+    py_conv3d_config.def_readwrite("groups", &Conv3dConfig::groups, "");
+    py_conv3d_config.def_readwrite("compute_with_storage_grid_size", &Conv3dConfig::compute_with_storage_grid_size, "");
 
     py_conv3d_config.def("__repr__", [](const Conv3dConfig& config) { return fmt::format("{}", config); });
 }

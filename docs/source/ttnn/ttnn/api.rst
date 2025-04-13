@@ -512,6 +512,12 @@ Convolution
    ttnn.prepare_conv_weights
    ttnn.prepare_conv_bias
 
+.. autosummary::
+   :toctree: api
+
+   ttnn.Conv2dConfig
+   ttnn.Conv3dConfig
+
 Pooling
 =======
 
